@@ -28,23 +28,25 @@ defmodule Mix.Tasks.CreateData do
   defp process_module(module_name) when is_atom(module_name) do
     case module_name |> Code.fetch_docs() do
       {:docs_v1, _, _, _content_type, _docstring, _module_metadata, functions} ->
-        outputs =
-          functions
-          |> Enum.map(fn f -> function_data(f, module_name) end)
-          |> Enum.reject(fn
-            {:error, _} -> true
-            _ -> false
-          end)
-
-        Enum.each(outputs, fn {:ok, data} ->
-          json = Jason.encode!(data)
-          IO.puts("Writing #{module_name}")
-          File.write!(@file_name, json <> "\n", [:append, {:encoding, :utf8}])
+        functions
+        |> Enum.map(fn f -> function_data(f, module_name) end)
+        |> Enum.reject(fn
+          {:error, _} -> true
+          _ -> false
         end)
+        |> write(module_name)
 
       {:error, _} ->
         IO.puts("Error on #{module_name}")
     end
+  end
+
+  defp write(outputs, module_name) when is_list(outputs) do
+    Enum.each(outputs, fn {:ok, data} ->
+      json = Jason.encode!(data)
+      IO.puts("Writing #{module_name}")
+      File.write!(@file_name, json <> "\n", [:append, {:encoding, :utf8}])
+    end)
   end
 
   defp function_data(
