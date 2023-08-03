@@ -79,9 +79,7 @@ defmodule Mix.Tasks.CreateData do
 
   def generate_prompt(%{signature: signature, doc_content: doc_content, module_name: module_name}) do
     prompt =
-      String.trim(
-        "Can you write a docstring for the following Elixir function? #{module_name}.#{signature}"
-      )
+      String.trim("Can you write a docstring for the following Elixir function? #{signature}")
 
     %{"prompt" => prompt, "completion" => String.trim(doc_content)}
   end
