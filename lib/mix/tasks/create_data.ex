@@ -5,14 +5,18 @@ defmodule Mix.Tasks.CreateData do
   @file_name "data.jsonl"
 
   @impl Mix.Task
-  def run(_args) do
-    File.rm(@file_name)
+  def run(args) do
+    {opts, _, _} = OptionParser.parse(args, strict: [name: :string])
 
-    [:mix, :eex, :elixir, :ex_unit, :iex, :logger]
+    file_name = opts[:name] || @file_name
+
+    File.rm(file_name)
+
+    [:mix, :eex, :elixir, :ex_unit, :iex, :logger, :phoenix]
     |> get_all_modules()
     |> Enum.map(&process_module/1)
     |> List.flatten()
-    |> Enum.each(&write_jsonl/1)
+    |> Enum.each(&write_jsonl(&1, file_name))
   end
 
   def get_all_modules(modules) do
@@ -64,17 +68,21 @@ defmodule Mix.Tasks.CreateData do
     nil
   end
 
-  def write_jsonl(outputs) when is_list(outputs) do
-    Enum.each(outputs, &write_jsonl/1)
+  def write_jsonl(outputs, file_name) when is_list(outputs) do
+    Enum.each(outputs, &write_jsonl(&1, file_name))
   end
 
-  def write_jsonl({:ok, data}) do
+  def write_jsonl({:ok, data}, file_name) do
     json = Jason.encode!(generate_prompt(data)) <> "\n"
-    File.write!(@file_name, json, [:append, {:encoding, :utf8}])
+    File.write!("outputs/#{file_name}", json, [:append, {:encoding, :utf8}])
   end
 
   def generate_prompt(%{signature: signature, doc_content: doc_content, module_name: module_name}) do
-    prompt = String.trim("#{module_name}.#{signature}: #{doc_content}")
-    %{"prompt" => prompt, "completion" => ""}
+    prompt =
+      String.trim(
+        "Can you write a docstring for the following Elixir function? #{module_name}.#{signature}"
+      )
+
+    %{"prompt" => prompt, "completion" => String.trim(doc_content)}
   end
 end
