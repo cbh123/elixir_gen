@@ -80,7 +80,7 @@ defmodule Mix.Tasks.CreateData do
   end
 
   def generate_prompt(%{signature: signature, doc_content: doc_content, module_name: module_name}) do
-    prompt = "#{module_name}.#{signature}: #{doc_content}" |> String.trim()
+    prompt = String.trim("#{module_name}.#{signature}: #{doc_content}")
     %{"prompt" => prompt, "completion" => ""}
   end
 end
