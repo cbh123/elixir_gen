@@ -8,14 +8,19 @@ defmodule Mix.Tasks.CreateData do
   def run(_args) do
     File.rm(@file_name)
 
-    get_all_modules()
-    |> Enum.each(fn module ->
-      process_module(module)
-    end)
+    [:mix, :eex, :elixir, :ex_unit, :iex, :logger]
+    |> get_all_modules()
+    |> Enum.map(&process_module/1)
+    |> List.flatten()
+    |> Enum.each(&write_jsonl/1)
+
+    # |> process_module()
+    # |> write_jsonl()
+    # end)
   end
 
-  def get_all_modules() do
-    [:mix, :eex, :elixir, :ex_unit, :iex, :logger]
+  def get_all_modules(modules) do
+    modules
     |> Enum.map(fn app ->
       case :application.get_key(app, :modules) do
         {:ok, modules} -> modules
@@ -25,41 +30,57 @@ defmodule Mix.Tasks.CreateData do
     |> List.flatten()
   end
 
-  defp process_module(module_name) when is_atom(module_name) do
-    case module_name |> Code.fetch_docs() do
-      {:docs_v1, _, _, _content_type, _docstring, _module_metadata, functions} ->
-        functions
-        |> Enum.map(fn f -> function_data(f, module_name) end)
-        |> Enum.reject(fn
-          {:error, _} -> true
-          _ -> false
-        end)
-        |> write(module_name)
+  defp process_module(module_name) do
+    case Code.fetch_docs(module_name) do
+      {:docs_v1, _, _, _content_type, docstring, _module_metadata, functions} ->
+        data =
+          Enum.map(functions, fn f -> function_data(f, module_name) end) ++
+            module_data(%{doc_content: docstring, module_name: module_name})
+
+        Enum.filter(data, fn x -> x != nil end)
 
       {:error, _} ->
-        IO.puts("Error on #{module_name}")
+        # IO.puts("Error on #{module_name}")
+
+        []
     end
   end
 
-  defp write(outputs, module_name) when is_list(outputs) do
-    Enum.each(outputs, fn {:ok, data} ->
-      json = Jason.encode!(data)
-      IO.puts("Writing #{module_name}")
-      File.write!(@file_name, json <> "\n", [:append, {:encoding, :utf8}])
+  defp module_data(%{doc_content: %{"en" => doc_content}, module_name: module_name}) do
+    doc_content
+    |> String.split(~r/\n##/)
+    |> Enum.map(fn x -> String.trim(x) end)
+    |> Enum.map(fn content ->
+      {:ok, %{signature: module_name, doc_content: content, module_name: module_name}}
     end)
+  end
+
+  defp module_data(%{doc_content: _other}) do
+    []
   end
 
   defp function_data(
          {{:function, _name, _arity}, _anno, signature, %{"en" => doc_content}, _metadata},
          module_name
        ) do
-    {:ok, %{"prompt" => "#{module_name}.#{signature}: #{doc_content}", "completion" => ""}}
+    {:ok, %{signature: signature, doc_content: doc_content, module_name: module_name}}
   end
 
-  defp function_data(
-         {{type, name, _arity}, _anno, _signature, _doc_content, _metadata},
-         _module_name
-       ) do
-    {:error, "We don't care about #{type} #{name} yet"}
+  defp function_data(_, _) do
+    nil
+  end
+
+  def write_jsonl(outputs) when is_list(outputs) do
+    Enum.each(outputs, &write_jsonl/1)
+  end
+
+  def write_jsonl({:ok, data}) do
+    json = Jason.encode!(generate_prompt(data)) <> "\n"
+    File.write!(@file_name, json, [:append, {:encoding, :utf8}])
+  end
+
+  def generate_prompt(%{signature: signature, doc_content: doc_content, module_name: module_name}) do
+    prompt = String.trim("#{module_name}.#{signature}: #{doc_content}")
+    %{"prompt" => prompt, "completion" => ""}
   end
 end
