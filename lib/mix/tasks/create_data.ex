@@ -13,10 +13,6 @@ defmodule Mix.Tasks.CreateData do
     |> Enum.map(&process_module/1)
     |> List.flatten()
     |> Enum.each(&write_jsonl/1)
-
-    # |> process_module()
-    # |> write_jsonl()
-    # end)
   end
 
   def get_all_modules(modules) do
@@ -40,8 +36,6 @@ defmodule Mix.Tasks.CreateData do
         Enum.filter(data, fn x -> x != nil end)
 
       {:error, _} ->
-        # IO.puts("Error on #{module_name}")
-
         []
     end
   end
