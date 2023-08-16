@@ -82,7 +82,7 @@ defmodule Mix.Tasks.CreateData do
 
     %{
       "text" =>
-        "Can you write a docstring for this Elixir function name? #{prompt} \n###Response: #{String.trim(doc_content)}"
+        "Can you write a docstring for this Elixir function name? #{prompt} <response> #{String.trim(doc_content)}"
     }
   end
 end
