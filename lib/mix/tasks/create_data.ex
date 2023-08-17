@@ -81,8 +81,7 @@ defmodule Mix.Tasks.CreateData do
     prompt = String.trim("#{module_name}.#{signature}")
 
     %{
-      "text" =>
-        "Write a docstring for the following function name. #{prompt} <response> #{String.trim(doc_content)}"
+      "text" => "<function>#{prompt}</function><docstring>#{String.trim(doc_content)}</docstring>"
     }
   end
 end
